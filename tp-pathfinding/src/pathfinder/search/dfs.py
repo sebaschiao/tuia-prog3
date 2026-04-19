@@ -22,7 +22,27 @@ class DepthFirstSearch:
         expanded = dict()
 
         # Initialize frontier with the root node
-        # TODO Complete the rest!!
-        # ...
+        frontier = StackFrontier()
+        frontier.add(root)
+
+        while True:
+            if frontier.is_empty():
+                return NoSolution(expanded)
+
+            node = frontier.remove()
+            if node.state in expanded:
+                continue
+
+            expanded[node.state] = True
+            for action in grid.actions(node.state):
+                new_state = grid.result(node.state, action)
+                if new_state not in expanded.keys():
+                    new_node = Node("", state=new_state,
+                                    cost=node.cost + grid.individual_cost(
+                                        node.state, action), parent=node,
+                                    action=action)
+                    if grid.objective_test(new_state):
+                        return Solution(new_node, expanded)
+                    frontier.add(new_node)
 
         return NoSolution(expanded)
