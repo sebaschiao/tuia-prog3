@@ -14,11 +14,11 @@ from tateti import Tateti, JUGADOR_MAX, JUGADOR_MIN
 def estrategia_aleatoria(tateti: Tateti, estado: List[List[str]]) -> Tuple[int, int]:
     """
     Estrategia aleatoria: elige una acción al azar entre las disponibles.
-  
+
     Args:
         tateti: Instancia de la clase Tateti
         estado: Estado actual del tablero
-        
+
     Returns:
         Tuple[int, int]: Acción elegida (fila, columna)
 
@@ -28,40 +28,48 @@ def estrategia_aleatoria(tateti: Tateti, estado: List[List[str]]) -> Tuple[int, 
     acciones_disponibles = tateti.acciones(estado)
     if not acciones_disponibles:
         raise ValueError("No hay acciones disponibles")
-    
+
     return random.choice(acciones_disponibles)
 
 def estrategia_minimax(tateti: Tateti, estado: List[List[str]]) -> Tuple[int, int]:
     """
-    Estrategia minimax: elige la mejor acción usando el algoritmo minimax.
-    
-    Args:
-        tateti: Instancia de la clase Tateti
-        estado: Estado actual del tablero
-        
-    Returns:
-        Tuple[int, int]: Acción elegida (fila, columna)
-        
-    Raises:
-        NotImplementedError: Hasta que el alumno implemente el algoritmo
+        Estrategia minimax: elige la mejor acción usando el algoritmo minimax.
+
+        Args:
+            tateti: Instancia de la clase Tateti
+            estado: Estado actual del tablero
+
+        Returns:
+            Tuple[int, int]: Acción elegida (fila, columna)
+
+        Raises:
+            NotImplementedError: Hasta que el alumno implemente el algoritmo
     """
-    # TODO: Implementar algoritmo minimax
+    if tateti.jugador(estado) == JUGADOR_MAX:
+        acciones_sucesoras = {accion: minimax_min(tateti, tateti.resultado(estado, accion)) for accion in tateti.acciones(estado)}
+        return max(acciones_sucesoras, key=acciones_sucesoras.get) # obtiene la clave con el mayor valor
+    if tateti.jugador(estado) == JUGADOR_MIN:
+        acciones_sucesoras = {accion: minimax_max(tateti, tateti.resultado(estado, accion)) for accion in tateti.acciones(estado)}
+        return min(acciones_sucesoras, key=acciones_sucesoras.get) # obtiene la clave con el menor valor
 
-    # INSTRUCCIONES:
-    # 1. Eliminar la línea 'raise NotImplementedError...' de abajo
-    # 2. Implementar el algoritmo minimax aquí
-    # 3. La función debe retornar una tupla (fila, columna) con la mejor jugada
 
-    raise NotImplementedError(
-        "\n" + "="*60 +
-        "\n🚫 ALGORITMO MINIMAX NO IMPLEMENTADO" +
-        "\n" + "="*60 +
-        "\n\nPara usar la estrategia Minimax debe implementarla primero." +
-        "\n\nInstrucciones:" +
-        "\n1. Abra el archivo 'estrategias.py'" +
-        "\n2. Busque la función 'estrategia_minimax()'" +
-        "\n3. Elimine la línea 'raise NotImplementedError(...)'" +
-        "\n4. Implemente el algoritmo minimax" +
-        "\n\nMientras tanto, use la 'Estrategia Aleatoria'." +
-        "\n" + "="*60
-    )
+def minimax_max(tateti: Tateti, estado :List[List[str]]) -> int | float:
+    """Función auxiliar para el algoritmo minimax: calcula el valor máximo para MAX"""
+    if tateti.test_terminal(estado):
+        return tateti.utilidad(estado, JUGADOR_MAX)
+    valor = -1
+    for accion in tateti.acciones(estado):
+        estado_sucesor = tateti.resultado(estado, accion)
+        valor = max(valor, minimax_min(tateti, estado_sucesor))
+    return valor
+
+
+def minimax_min(tateti: Tateti, estado :List[List[str]]) -> int | float:
+    """Función auxiliar para el algoritmo minimax: calcula el valor mínimo para MIN """
+    if tateti.test_terminal(estado):
+        return tateti.utilidad(estado, JUGADOR_MAX)
+    valor = 2
+    for accion in tateti.acciones(estado):
+        estado_sucesor = tateti.resultado(estado, accion)
+        valor = min(valor, minimax_max(tateti, estado_sucesor))
+    return valor
