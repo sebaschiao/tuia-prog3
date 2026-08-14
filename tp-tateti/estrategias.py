@@ -52,7 +52,6 @@ def estrategia_minimax(tateti: Tateti, estado: List[List[str]]) -> Tuple[int, in
         acciones_sucesoras = {accion: minimax_max(tateti, tateti.resultado(estado, accion)) for accion in tateti.acciones(estado)}
         return min(acciones_sucesoras, key=acciones_sucesoras.get) # obtiene la clave con el menor valor
 
-
 def minimax_max(tateti: Tateti, estado :List[List[str]]) -> int | float:
     """Función auxiliar para el algoritmo minimax: calcula el valor máximo para MAX"""
     if tateti.test_terminal(estado):
@@ -62,7 +61,6 @@ def minimax_max(tateti: Tateti, estado :List[List[str]]) -> int | float:
         estado_sucesor = tateti.resultado(estado, accion)
         valor = max(valor, minimax_min(tateti, estado_sucesor))
     return valor
-
 
 def minimax_min(tateti: Tateti, estado :List[List[str]]) -> int | float:
     """Función auxiliar para el algoritmo minimax: calcula el valor mínimo para MIN """

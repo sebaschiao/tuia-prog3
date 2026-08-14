@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>TP Pathfinding — Diagrama Interactivo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', monospace; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+  header {
+    background: #1a1d2e;
+    border-bottom: 2px solid #3b4a6b;
+    padding: 16px 24px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  header h1 { font-size: 1.3rem; color: #7dd3fc; }
+  header p { font-size: 0.8rem; color: #94a3b8; }
+
+  .tabs {
+    display: flex; gap: 8px; padding: 16px 24px;
+    border-bottom: 1px solid #2d3748;
+    background: #13151f;
+  }
+  .tab {
+    padding: 8px 18px; border-radius: 6px; cursor: pointer;
+    background: #1e2235; border: 1px solid #3b4a6b;
+    color: #94a3b8; font-size: 0.85rem; transition: all 0.2s;
+  }
+  .tab:hover { background: #2a3050; color: #e2e8f0; }
+  .tab.active { background: #2d4a8a; border-color: #7dd3fc; color: #7dd3fc; }
+
+  .view { display: none; padding: 24px; }
+  .view.active { display: block; }
+
+  /* ── CLASES ── */
+  .classes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  .class-card {
+    background: #1a1d2e; border: 1px solid #2d3748;
+    border-radius: 10px; overflow: hidden;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .class-card:hover { border-color: #7dd3fc; transform: translateY(-2px); box-shadow: 0 4px 20px rgba(125,211,252,0.15); }
+  .class-card.selected { border-color: #f59e0b; box-shadow: 0 0 0 2px #f59e0b44; }
+
+  .card-header {
+    padding: 12px 16px; font-size: 0.9rem; font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-header .badge {
+    font-size: 0.65rem; padding: 2px 7px; border-radius: 99px;
+    font-weight: 600; margin-left: auto;
+  }
+  .badge-model    { background: #1e3a5f; color: #7dd3fc; }
+  .badge-search   { background: #1a3a1a; color: #4ade80; }
+  .badge-ok       { background: #14532d; color: #86efac; }
+  .badge-skeleton { background: #4c1d1d; color: #fca5a5; }
+  .badge-partial  { background: #451a03; color: #fcd34d; }
+  .badge-frontier { background: #2d1a4a; color: #c4b5fd; }
+  .badge-ui       { background: #1c1a2e; color: #a78bfa; }
+
+  .card-body { padding: 0 16px 14px; }
+  .section-label { font-size: 0.65rem; color: #4a5568; text-transform: uppercase; letter-spacing: 0.08em; margin: 10px 0 4px; }
+  .prop { font-size: 0.78rem; color: #93c5fd; padding: 2px 0; font-family: monospace; }
+  .method { font-size: 0.78rem; color: #86efac; padding: 2px 0; font-family: monospace; }
+  .prop .type { color: #64748b; }
+  .method .ret { color: #64748b; }
+  .parent-chip {
+    display: inline-block; font-size: 0.7rem; padding: 1px 8px;
+    background: #1e2a1e; border: 1px solid #4ade8044; border-radius: 99px;
+    color: #4ade80; margin-bottom: 6px;
+  }
+  .rel-chip {
+    display: inline-block; font-size: 0.68rem; padding: 1px 8px;
+    background: #1e2035; border: 1px solid #7dd3fc44; border-radius: 99px;
+    color: #7dd3fc; margin: 2px 2px 0 0;
+  }
+
+  /* ── FLUJO DE EJECUCION ── */
+  .flow-wrap { overflow-x: auto; }
+  .flow {
+    display: flex; align-items: flex-start; gap: 0;
+    min-width: 900px; padding: 20px 0;
+  }
+  .flow-step {
+    flex: 1; text-align: center; position: relative;
+    cursor: pointer;
+  }
+  .flow-step:not(:last-child)::after {
+    content: '→';
+    position: absolute; right: -12px; top: 50%; transform: translateY(-50%);
+    color: #4a5568; font-size: 1.2rem; z-index: 1;
+  }
+  .flow-box {
+    margin: 0 10px; padding: 12px 8px;
+    background: #1a1d2e; border: 1px solid #2d3748;
+    border-radius: 8px; transition: all 0.2s;
+    font-size: 0.78rem;
+  }
+  .flow-box:hover { border-color: #7dd3fc; }
+  .flow-title { font-weight: 700; color: #7dd3fc; margin-bottom: 6px; font-size: 0.85rem; }
+  .flow-file  { font-size: 0.65rem; color: #4a5568; margin-bottom: 6px; font-family: monospace; }
+  .flow-detail{ font-size: 0.72rem; color: #94a3b8; line-height: 1.5; }
+
+  /* ── ALGORITMOS ── */
+  .algo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+  .algo-card {
+    background: #1a1d2e; border-radius: 10px; overflow: hidden;
+    border: 1px solid #2d3748;
+  }
+  .algo-header {
+    padding: 14px 16px; display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid #2d3748;
+  }
+  .algo-name { font-size: 1rem; font-weight: 700; }
+  .algo-status {
+    margin-left: auto; font-size: 0.7rem; padding: 3px 10px;
+    border-radius: 99px; font-weight: 600;
+  }
+  .st-ok       { background: #14532d; color: #86efac; }
+  .st-partial  { background: #451a03; color: #fcd34d; }
+  .st-skeleton { background: #4c1d1d; color: #fca5a5; }
+
+  .algo-body { padding: 14px 16px; }
+  .algo-row { display: flex; gap: 8px; margin-bottom: 8px; font-size: 0.8rem; }
+  .algo-key { color: #64748b; width: 100px; flex-shrink: 0; }
+  .algo-val { color: #e2e8f0; }
+  .algo-val.code { font-family: monospace; color: #93c5fd; }
+  .algo-val.green { color: #4ade80; }
+  .algo-val.red { color: #f87171; }
+
+  .steps-list { margin-top: 12px; }
+  .step-item {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 5px 0; font-size: 0.78rem; color: #94a3b8;
+    border-bottom: 1px solid #1e2235;
+  }
+  .step-num {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #2d3748; color: #7dd3fc; font-size: 0.65rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ── HERENCIA ── */
+  .inherit-wrap { display: flex; gap: 40px; flex-wrap: wrap; }
+  .tree-box {
+    background: #1a1d2e; border-radius: 10px; padding: 20px;
+    border: 1px solid #2d3748; min-width: 280px;
+  }
+  .tree-title { font-size: 0.85rem; color: #94a3b8; margin-bottom: 14px; }
+  .tree-node {
+    padding: 8px 12px; border-radius: 6px; margin: 4px 0;
+    font-size: 0.82rem; font-family: monospace;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .tree-node:hover { filter: brightness(1.2); }
+  .tree-node.base     { background: #1e3a5f; color: #7dd3fc; border: 1px solid #2d5a8f; }
+  .tree-node.child    { background: #1a2e1a; color: #4ade80; border: 1px solid #2d4a2d; margin-left: 28px; }
+  .tree-node.child::before { content: '↳ '; color: #4a5568; }
+  .tree-node.concrete { background: #1e1a3a; color: #c4b5fd; border: 1px solid #3d2d6a; margin-left: 56px; }
+  .tree-node.concrete::before { content: '↳ '; color: #4a5568; }
+
+  /* ── DETAIL PANEL ── */
+  #detail-panel {
+    position: fixed; right: 0; top: 0; bottom: 0;
+    width: 360px; background: #13151f; border-left: 2px solid #3b4a6b;
+    padding: 20px; overflow-y: auto; transform: translateX(100%);
+    transition: transform 0.25s; z-index: 100;
+  }
+  #detail-panel.open { transform: translateX(0); }
+  #detail-panel h2 { color: #7dd3fc; font-size: 1rem; margin-bottom: 4px; }
+  #detail-panel .close-btn {
+    position: absolute; top: 16px; right: 16px; cursor: pointer;
+    color: #4a5568; font-size: 1.2rem;
+  }
+  #detail-panel .close-btn:hover { color: #e2e8f0; }
+  #detail-content p { font-size: 0.82rem; color: #94a3b8; line-height: 1.6; margin-top: 8px; }
+  #detail-content h3 { font-size: 0.75rem; color: #4a5568; text-transform: uppercase; letter-spacing: 0.08em; margin: 14px 0 4px; }
+  #detail-content .code-block {
+    background: #0f1117; border: 1px solid #2d3748; border-radius: 6px;
+    padding: 10px; font-size: 0.72rem; font-family: monospace; color: #86efac;
+    line-height: 1.6; overflow-x: auto;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>TP Pathfinding — Diagrama Interactivo</h1>
+    <p>Haz clic en cualquier clase o algoritmo para ver detalles</p>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="showView('clases')">Clases</div>
+  <div class="tab" onclick="showView('flujo')">Flujo de ejecución</div>
+  <div class="tab" onclick="showView('algoritmos')">Algoritmos</div>
+  <div class="tab" onclick="showView('herencia')">Herencia y relaciones</div>
+</div>
+
+<!-- VIEW: CLASES -->
+<div class="view active" id="view-clases">
+  <div class="classes-grid" id="classes-grid"></div>
+</div>
+
+<!-- VIEW: FLUJO -->
+<div class="view" id="view-flujo">
+  <div class="flow-wrap">
+    <div class="flow" id="flow-steps"></div>
+  </div>
+</div>
+
+<!-- VIEW: ALGORITMOS -->
+<div class="view" id="view-algoritmos">
+  <div class="algo-grid" id="algo-grid"></div>
+</div>
+
+<!-- VIEW: HERENCIA -->
+<div class="view" id="view-herencia">
+  <div class="inherit-wrap" id="inherit-wrap"></div>
+</div>
+
+<!-- DETAIL PANEL -->
+<div id="detail-panel">
+  <span class="close-btn" onclick="closeDetail()">✕</span>
+  <div id="detail-content"></div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+
+const CLASSES = [
+  {
+    name: 'Node',
+    file: 'pathfinder/models/node.py',
+    badge: 'Modelo', badgeClass: 'badge-model',
+    parent: null,
+    description: 'Representa un nodo en el espacio de búsqueda. Cada nodo contiene su estado (posición), el costo acumulado, el nodo padre (para reconstruir el camino) y la acción que lo generó.',
+    props: [
+      { name: 'value', type: 'str', desc: 'Valor del nodo en la grilla (caracter)' },
+      { name: 'state', type: 'tuple[int,int]', desc: 'Posición (fila, col)' },
+      { name: 'cost', type: 'int', desc: 'Costo acumulado desde el inicio' },
+      { name: 'parent', type: 'Node | None', desc: 'Nodo padre (para reconstruir camino)' },
+      { name: 'action', type: 'str | None', desc: 'Acción que llevó a este nodo' },
+      { name: 'estimated_distance', type: 'float', desc: 'Heurística estimada (default: inf)' },
+    ],
+    methods: [
+      { sig: '__init__(value, state, cost, parent, action)', desc: 'Constructor' },
+      { sig: '__lt__(other) → bool', desc: 'Comparación para heaps: usa estimated_distance' },
+      { sig: '__repr__() → str', desc: 'Representación string' },
+    ],
+    relations: ['usado por Grid', 'usado por Frontier', 'usado por Solution'],
+    snippet: `class Node:
+    def __init__(self, value, state, cost=0,
+                 parent=None, action=None):
+        self.value = value
+        self.state = state
+        self.cost  = cost
+        self.parent = parent
+        self.action = action
+        self.estimated_distance = float('inf')
+
+    def __lt__(self, other):
+        if self.estimated_distance == other.estimated_distance:
+            return self.state < other.state
+        return self.estimated_distance < other.estimated_distance`
+  },
+  {
+    name: 'Grid',
+    file: 'pathfinder/models/grid.py',
+    badge: 'Modelo', badgeClass: 'badge-model',
+    parent: null,
+    description: 'Representa el laberinto como una grilla 2D de Nodes. Provee la interfaz del problema: acciones válidas, transiciones, test de objetivo y costos individuales.',
+    props: [
+      { name: 'grid', type: 'list[list[Node]]', desc: 'Matriz 2D de nodos' },
+      { name: 'start / initial', type: 'tuple[int,int]', desc: 'Posición inicial' },
+      { name: 'end', type: 'tuple[int,int]', desc: 'Posición objetivo' },
+      { name: 'width', type: 'int', desc: 'Ancho de la grilla' },
+      { name: 'height', type: 'int', desc: 'Alto de la grilla' },
+    ],
+    methods: [
+      { sig: 'actions(pos) → list[str]', desc: 'Devuelve acciones válidas (no muro, no fuera)' },
+      { sig: 'result(pos, action) → tuple', desc: 'Nueva posición tras aplicar acción' },
+      { sig: 'objective_test(pos) → bool', desc: 'Verdadero si pos == end' },
+      { sig: 'individual_cost(pos, action) → int', desc: 'Costo del nodo destino' },
+    ],
+    relations: ['contiene Node', 'usado por todos los algoritmos de búsqueda'],
+    snippet: `# Acciones disponibles desde pos
+def actions(self, pos):
+    actions = []
+    row, col = pos
+    moves = {
+        'up':    (row-1, col),
+        'down':  (row+1, col),
+        'left':  (row, col-1),
+        'right': (row, col+1),
+    }
+    for action, (r, c) in moves.items():
+        if 0<=r<self.height and 0<=c<self.width:
+            if self.grid[r][c].value != '#':
+                actions.append(action)
+    return actions`
+  },
+  {
+    name: 'Frontier',
+    file: 'pathfinder/models/frontier.py',
+    badge: 'Frontera', badgeClass: 'badge-frontier',
+    parent: null,
+    description: 'Clase base para las estructuras de datos que almacenan los nodos pendientes de explorar. Define la interfaz común para todas las fronteras.',
+    props: [
+      { name: 'frontier', type: 'list[Node]', desc: 'Lista interna de nodos' },
+    ],
+    methods: [
+      { sig: 'add(node) → None', desc: 'Agrega nodo a la frontera' },
+      { sig: 'contains_state(state) → bool', desc: 'Búsqueda lineal por estado' },
+      { sig: 'is_empty() → bool', desc: 'Verdadero si la frontera está vacía' },
+    ],
+    relations: ['subclases: StackFrontier, QueueFrontier, PriorityQueueFrontier'],
+    snippet: `class Frontier:
+    def __init__(self):
+        self.frontier = []
+
+    def add(self, node):
+        self.frontier.append(node)
+
+    def contains_state(self, state):
+        return any(n.state == state for n in self.frontier)
+
+    def is_empty(self):
+        return len(self.frontier) == 0`
+  },
+  {
+    name: 'StackFrontier',
+    file: 'pathfinder/models/frontier.py',
+    badge: 'Frontera', badgeClass: 'badge-frontier',
+    parent: 'Frontier',
+    description: 'Implementa una pila (LIFO). Úsala en DFS: el último nodo agregado es el primero en explorarse, generando búsqueda en profundidad.',
+    props: [],
+    methods: [
+      { sig: 'remove() → Node', desc: 'Saca el último nodo (LIFO / pop)' },
+    ],
+    relations: ['hereda de Frontier', 'usada por DFS'],
+    snippet: `class StackFrontier(Frontier):
+    def remove(self):
+        if self.is_empty():
+            raise Exception("Frontier is empty")
+        # LIFO: saca del final
+        return self.frontier.pop()`
+  },
+  {
+    name: 'QueueFrontier',
+    file: 'pathfinder/models/frontier.py',
+    badge: 'Frontera', badgeClass: 'badge-frontier',
+    parent: 'Frontier',
+    description: 'Implementa una cola (FIFO). Úsala en BFS: el primer nodo agregado es el primero en explorarse, garantizando el camino más corto (en cantidad de pasos).',
+    props: [],
+    methods: [
+      { sig: 'remove() → Node', desc: 'Saca el primer nodo (FIFO / dequeue)' },
+    ],
+    relations: ['hereda de Frontier', 'usada por BFS y GoRight'],
+    snippet: `class QueueFrontier(Frontier):
+    def remove(self):
+        if self.is_empty():
+            raise Exception("Frontier is empty")
+        # FIFO: saca del inicio
+        return self.frontier.pop(0)`
+  },
+  {
+    name: 'PriorityQueueFrontier',
+    file: 'pathfinder/models/frontier.py',
+    badge: 'Frontera', badgeClass: 'badge-frontier',
+    parent: 'Frontier',
+    description: 'Implementa una cola de prioridad usando un heap mínimo. Úsala en UCS, GBFS y A*. La prioridad determina qué nodo se expande primero.',
+    props: [
+      { name: 'frontier', type: 'list[tuple[int, Node]]', desc: 'Heap de (prioridad, nodo)' },
+    ],
+    methods: [
+      { sig: 'add(node, priority=0) → None', desc: 'heappush con (priority, node)' },
+      { sig: 'get(state) → tuple | None', desc: 'Busca (priority, node) por estado' },
+      { sig: 'pop() → Node', desc: 'heappop — devuelve nodo con menor prioridad' },
+    ],
+    relations: ['hereda de Frontier', 'usada por UCS, GBFS, A*'],
+    snippet: `from heapq import heappush, heappop
+
+class PriorityQueueFrontier(Frontier):
+    def add(self, node, priority=0):
+        heappush(self.frontier, (priority, node))
+
+    def pop(self):
+        if self.is_empty():
+            raise Exception("Frontier is empty")
+        return heappop(self.frontier)[1]  # devuelve solo el nodo
+
+    def get(self, state):
+        for item in self.frontier:
+            if item[1].state == state:
+                return item
+        return None`
+  },
+  {
+    name: 'Solution',
+    file: 'pathfinder/models/solution.py',
+    badge: 'Modelo', badgeClass: 'badge-model',
+    parent: null,
+    description: 'Encapsula el resultado de una búsqueda exitosa. Reconstruye el camino siguiendo la cadena de padres desde el nodo final hasta el inicial.',
+    props: [
+      { name: 'path', type: 'list[tuple]', desc: 'Lista de posiciones del camino (inicio→fin)' },
+      { name: 'path_cost', type: 'int', desc: 'Costo total del camino' },
+      { name: 'path_length', type: 'int', desc: 'Cantidad de nodos en el camino' },
+      { name: 'explored', type: 'list[tuple]', desc: 'Todos los estados explorados' },
+      { name: 'explored_length', type: 'int', desc: 'Cantidad de estados explorados' },
+      { name: 'time', type: 'float', desc: 'Tiempo de ejecución (ms)' },
+    ],
+    methods: [
+      { sig: '__init__(node, explored, time)', desc: 'Reconstruye camino desde nodo final' },
+    ],
+    relations: ['usa Node (cadena de padres)', 'retornada por algoritmos de búsqueda'],
+    snippet: `class Solution:
+    def __init__(self, node, explored, time):
+        path = []
+        while node.parent is not None:
+            path.append(node.state)
+            node = node.parent
+        path.append(node.state)
+        path.reverse()          # de inicio a fin
+        self.path = path
+        self.path_cost = node.cost  # costo del nodo final
+        self.explored  = explored`
+  },
+  {
+    name: 'NoSolution',
+    file: 'pathfinder/models/solution.py',
+    badge: 'Modelo', badgeClass: 'badge-model',
+    parent: null,
+    description: 'Retornada cuando no existe camino desde el inicio hasta el objetivo. Tiene las mismas propiedades que Solution pero todas vacías/cero.',
+    props: [
+      { name: 'path', type: 'list', desc: 'Lista vacía []' },
+      { name: 'path_cost', type: 'int', desc: '0' },
+      { name: 'explored', type: 'list', desc: 'Todos los estados explorados antes de rendir' },
+    ],
+    methods: [
+      { sig: '__init__(explored, time)', desc: 'Constructor con camino vacío' },
+    ],
+    relations: ['retornada por algoritmos cuando no hay camino'],
+    snippet: `class NoSolution:
+    def __init__(self, explored, time):
+        self.path          = []
+        self.path_cost     = 0
+        self.path_length   = 0
+        self.explored      = explored
+        self.explored_length = len(explored)
+        self.time = time`
+  },
+  {
+    name: 'PathFinder',
+    file: 'pathfinder/main.py',
+    badge: 'Orquestador', badgeClass: 'badge-search',
+    parent: null,
+    description: 'Coordina la búsqueda: selecciona el algoritmo según el tipo de búsqueda solicitado, mide el tiempo de ejecución y retorna el resultado.',
+    props: [
+      { name: 'SEARCH (dict)', type: 'dict[Search → class]', desc: 'Mapeo enum → clase de algoritmo' },
+    ],
+    methods: [
+      { sig: 'find_path(grid, search_type) → Solution', desc: 'Instancia y ejecuta el algoritmo, retorna Solution/NoSolution' },
+    ],
+    relations: ['usa Grid', 'usa Search enum', 'usa todos los algoritmos', 'retorna Solution/NoSolution'],
+    snippet: `class PathFinder:
+    SEARCH = {
+        Search.GO_RIGHT:               GoRight,
+        Search.BREADTH_FIRST_SEARCH:   BFS,
+        Search.DEPTH_FIRST_SEARCH:     DFS,
+        Search.UNIFORM_COST_SEARCH:    UCS,
+        Search.GREEDY_BEST_FIRST_SEARCH: GBFS,
+        Search.ASTAR_SEARCH:           AStarSearch,
+    }
+
+    @staticmethod
+    def find_path(grid, search_type):
+        start = time.time()
+        result = PathFinder.SEARCH[search_type](grid)
+        elapsed = (time.time() - start) * 1000
+        return result.search(elapsed)`
+  },
+];
+
+const ALGOS = [
+  {
+    name: 'GoRight', fullName: 'GoRight (naive)',
+    file: 'pathfinder/search/goright.py',
+    status: 'ok', statusLabel: '✓ Implementado',
+    frontier: 'QueueFrontier',
+    optimo: 'No', completo: 'No',
+    prioridad: 'N/A',
+    description: 'Algoritmo ingenuo: siempre intenta moverse a la derecha. Si no puede, retorna NoSolution.',
+    steps: [
+      'Crear nodo raíz desde grid.start',
+      'Si está en el objetivo → Solution',
+      'Si puede ir a la derecha → mover',
+      'Si no → NoSolution',
+    ],
+    missing: [],
+  },
+  {
+    name: 'BFS', fullName: 'Breadth-First Search',
+    file: 'pathfinder/search/bfs.py',
+    status: 'ok', statusLabel: '✓ Implementado',
+    frontier: 'QueueFrontier',
+    optimo: 'Sí (costo uniforme)', completo: 'Sí',
+    prioridad: 'Ninguna (FIFO)',
+    description: 'Explora por niveles. Garantiza el camino más corto en cantidad de pasos cuando todos los costos son iguales.',
+    steps: [
+      'Crear nodo raíz; test objetivo',
+      'Agregar raíz a QueueFrontier y reached{}',
+      'Loop: sacar nodo de la cola (FIFO)',
+      'Expandir: para cada acción válida crear hijo',
+      'Si hijo no está en reached → test objetivo',
+      'Si es objetivo → Solution; si no → agregar a frontera',
+    ],
+    missing: [],
+  },
+  {
+    name: 'DFS', fullName: 'Depth-First Search',
+    file: 'pathfinder/search/dfs.py',
+    status: 'skeleton', statusLabel: '✗ Solo esqueleto',
+    frontier: 'StackFrontier',
+    optimo: 'No', completo: 'No (puede ciclar sin control)',
+    prioridad: 'Ninguna (LIFO)',
+    description: 'Explora en profundidad usando una pila. Igual que BFS pero cambiando QueueFrontier → StackFrontier.',
+    steps: [
+      'Crear nodo raíz; test objetivo',
+      'Agregar raíz a StackFrontier y expanded{}',
+      'Loop: sacar nodo del tope de la pila (LIFO)',
+      'Expandir: para cada acción válida crear hijo',
+      'Si hijo no está en expanded → test objetivo',
+      'Si es objetivo → Solution; si no → agregar a frontera',
+    ],
+    missing: ['StackFrontier inicializado', 'test objetivo en raíz', 'loop principal', 'expansión de nodos'],
+  },
+  {
+    name: 'UCS', fullName: 'Uniform Cost Search',
+    file: 'pathfinder/search/ucs.py',
+    status: 'skeleton', statusLabel: '✗ Solo esqueleto',
+    frontier: 'PriorityQueueFrontier',
+    optimo: 'Sí (costo real)', completo: 'Sí',
+    prioridad: 'g(n) — costo acumulado',
+    description: 'Como BFS pero con PriorityQueue. Expande siempre el nodo de menor costo acumulado, garantizando el camino óptimo.',
+    steps: [
+      'Crear nodo raíz con costo 0; test objetivo',
+      'Agregar raíz a PriorityQueueFrontier con prioridad=0',
+      'Loop: sacar nodo con menor costo (heappop)',
+      'Expandir: costo_hijo = costo_padre + individual_cost()',
+      'Si estado no en reached O nuevo costo < reached[estado] → agregar',
+      'Test objetivo al SACAR (no al agregar)',
+    ],
+    missing: ['inicializar PriorityQueueFrontier', 'test objetivo correcto (al sacar)', 'loop con heappop', 'cálculo de costo acumulado', 'comparación de costos para revisitar'],
+  },
+  {
+    name: 'GBFS', fullName: 'Greedy Best-First Search',
+    file: 'pathfinder/search/gbfs.py',
+    status: 'skeleton', statusLabel: '✗ Solo esqueleto',
+    frontier: 'PriorityQueueFrontier',
+    optimo: 'No', completo: 'Sí (con reached)',
+    prioridad: 'h(n) — solo heurística',
+    description: 'Expansión voraz guiada por heurística. Prioriza nodos que parecen más cercanos al objetivo según la distancia Manhattan, sin considerar el costo ya pagado.',
+    steps: [
+      'Definir h(n) = |n.row - end.row| + |n.col - end.col|',
+      'Crear nodo raíz; test objetivo',
+      'Agregar raíz a PriorityQueueFrontier con prioridad=h(raíz)',
+      'Loop: sacar nodo con menor h(n)',
+      'Expandir: calcular h(hijo) y asignar a estimated_distance',
+      'Si estado no en reached → agregar con prioridad=h(hijo)',
+    ],
+    missing: ['función heurística Manhattan', 'inicializar PriorityQueueFrontier con h(n)', 'loop principal', 'cálculo de h para cada hijo'],
+  },
+  {
+    name: 'A*', fullName: 'A* Search',
+    file: 'pathfinder/search/astar.py',
+    status: 'skeleton', statusLabel: '✗ Solo esqueleto',
+    frontier: 'PriorityQueueFrontier',
+    optimo: 'Sí (con h admisible)', completo: 'Sí',
+    prioridad: 'f(n) = g(n) + h(n)',
+    description: 'Combina el costo real (como UCS) con la heurística (como GBFS). Con la distancia Manhattan es admisible → garantiza optimalidad.',
+    steps: [
+      'Definir h(n) = distancia Manhattan al objetivo',
+      'Crear nodo raíz; prioridad inicial = 0 + h(raíz)',
+      'Loop: sacar nodo con menor f(n) = g(n) + h(n)',
+      'Expandir: g_hijo = g_padre + individual_cost()',
+      'f_hijo = g_hijo + h(hijo)',
+      'Si estado no en reached O f_hijo < f anterior → agregar',
+    ],
+    missing: ['función heurística', 'f(n) = g(n) + h(n) en cada expansión', 'loop con prioridad f(n)', 'comparación para revisitar con menor f'],
+  },
+];
+
+const FLOW_STEPS = [
+  {
+    title: 'main.py',
+    file: 'src/main.py',
+    detail: 'GUI en PyGame.\nUsuario elige algoritmo\ny hace clic en "Buscar".',
+  },
+  {
+    title: 'Maze',
+    file: 'src/maze.py',
+    detail: 'Genera la grilla y\ncrea el objeto Grid\na partir del laberinto.',
+  },
+  {
+    title: 'PathFinder',
+    file: 'pathfinder/main.py',
+    detail: 'find_path(grid, Search.X)\nSelecciona el algoritmo\ny mide el tiempo.',
+  },
+  {
+    title: 'Algoritmo',
+    file: 'pathfinder/search/xxx.py',
+    detail: 'BFS / DFS / UCS / GBFS / A*\nUsa Grid, Frontier, Node\npara encontrar el camino.',
+  },
+  {
+    title: 'Solution',
+    file: 'pathfinder/models/solution.py',
+    detail: 'Reconstruye el camino\nsiguiendo la cadena\nde nodos padre.',
+  },
+  {
+    title: 'Animator',
+    file: 'src/animations.py',
+    detail: 'Visualiza el camino\ny los nodos explorados\nen la pantalla.',
+  },
+];
+
+const TREES = [
+  {
+    title: 'Jerarquía de Fronteras',
+    nodes: [
+      { label: 'Frontier (base)', cls: 'base', info: 'Clase base. Define add(), contains_state(), is_empty().' },
+      { label: 'StackFrontier', cls: 'child', info: 'LIFO (pila). remove() = pop(). Para DFS.' },
+      { label: 'QueueFrontier', cls: 'child', info: 'FIFO (cola). remove() = pop(0). Para BFS.' },
+      { label: 'PriorityQueueFrontier', cls: 'child', info: 'Heap mínimo. pop() extrae el de menor prioridad. Para UCS, GBFS, A*.' },
+    ],
+  },
+  {
+    title: 'Resultados de Búsqueda',
+    nodes: [
+      { label: 'Solution', cls: 'base', info: 'Camino encontrado. Reconstruye path desde nodo final.' },
+      { label: 'NoSolution', cls: 'base', info: 'Sin camino. Misma interfaz que Solution pero vacía.' },
+    ],
+  },
+  {
+    title: 'Algoritmos de Búsqueda',
+    nodes: [
+      { label: 'Algoritmo (conceptual)', cls: 'base', info: 'Todos siguen el mismo patrón: __init__(grid), search(time) → Solution.' },
+      { label: 'GoRight ✓', cls: 'child', info: 'Naive. Sin frontera real.' },
+      { label: 'BFS ✓', cls: 'child', info: 'QueueFrontier. FIFO.' },
+      { label: 'DFS ✗ skeleton', cls: 'concrete', info: 'StackFrontier. LIFO.' },
+      { label: 'UCS ✗ skeleton', cls: 'concrete', info: 'PriorityQueue con g(n).' },
+      { label: 'GBFS ✗ skeleton', cls: 'concrete', info: 'PriorityQueue con h(n).' },
+      { label: 'A* ✗ skeleton', cls: 'concrete', info: 'PriorityQueue con f=g+h.' },
+    ],
+  },
+];
+
+// ─── RENDER ─────────────────────────────────────────────────────────────────
+
+function renderClasses() {
+  const grid = document.getElementById('classes-grid');
+  grid.innerHTML = CLASSES.map((c, i) => `
+    <div class="class-card" onclick="showDetail('class', ${i})">
+      <div class="card-header" style="background: ${headerBg(c.badgeClass)}">
+        <span>${c.name}</span>
+        <span class="badge ${c.badgeClass}">${c.badge}</span>
+      </div>
+      <div class="card-body">
+        ${c.parent ? `<div class="parent-chip">extends ${c.parent}</div>` : ''}
+        ${c.props.length ? `<div class="section-label">Propiedades</div>` : ''}
+        ${c.props.map(p => `<div class="prop">${p.name}<span class="type">: ${p.type}</span></div>`).join('')}
+        <div class="section-label">Métodos</div>
+        ${c.methods.map(m => `<div class="method">${m.sig.split('→')[0]}<span class="ret">${m.sig.includes('→') ? '→' + m.sig.split('→')[1] : ''}</span></div>`).join('')}
+        <div class="section-label">Se relaciona con</div>
+        ${c.relations.map(r => `<span class="rel-chip">${r}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function headerBg(cls) {
+  const map = {
+    'badge-model':    '#1a2a3a',
+    'badge-frontier': '#1e1a3a',
+    'badge-search':   '#1a2a1a',
+    'badge-ui':       '#1e1a2a',
+  };
+  return map[cls] || '#1a1d2e';
+}
+
+function renderFlow() {
+  document.getElementById('flow-steps').innerHTML = FLOW_STEPS.map((s, i) => `
+    <div class="flow-step">
+      <div class="flow-box" onclick="showFlowDetail(${i})">
+        <div class="flow-title">${s.title}</div>
+        <div class="flow-file">${s.file}</div>
+        <div class="flow-detail">${s.detail.replace(/\n/g, '<br>')}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAlgos() {
+  document.getElementById('algo-grid').innerHTML = ALGOS.map((a, i) => `
+    <div class="algo-card">
+      <div class="algo-header">
+        <div>
+          <div class="algo-name">${a.name}</div>
+          <div style="font-size:0.72rem;color:#64748b;margin-top:2px">${a.fullName}</div>
+        </div>
+        <div class="algo-status ${a.status === 'ok' ? 'st-ok' : a.status === 'partial' ? 'st-partial' : 'st-skeleton'}">${a.statusLabel}</div>
+      </div>
+      <div class="algo-body">
+        <div class="algo-row"><span class="algo-key">Frontera:</span><span class="algo-val code">${a.frontier}</span></div>
+        <div class="algo-row"><span class="algo-key">Prioridad:</span><span class="algo-val">${a.prioridad}</span></div>
+        <div class="algo-row"><span class="algo-key">Óptimo:</span><span class="algo-val ${a.optimo.startsWith('Sí') ? 'green' : 'red'}">${a.optimo}</span></div>
+        <div class="algo-row"><span class="algo-key">Completo:</span><span class="algo-val ${a.completo.startsWith('Sí') ? 'green' : 'red'}">${a.completo}</span></div>
+        <div class="algo-row" style="align-items:flex-start"><span class="algo-key">Info:</span><span class="algo-val" style="line-height:1.5">${a.description}</span></div>
+        <div class="steps-list">
+          ${a.steps.map((s, j) => `<div class="step-item"><div class="step-num">${j+1}</div><div>${s}</div></div>`).join('')}
+        </div>
+        ${a.missing.length ? `
+          <div style="margin-top:10px;padding:8px;background:#2d1010;border-radius:6px;border:1px solid #7f1d1d">
+            <div style="font-size:0.68rem;color:#f87171;margin-bottom:4px;font-weight:600">FALTA IMPLEMENTAR:</div>
+            ${a.missing.map(m => `<div style="font-size:0.72rem;color:#fca5a5;padding:1px 0">• ${m}</div>`).join('')}
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderInherit() {
+  document.getElementById('inherit-wrap').innerHTML = TREES.map(tree => `
+    <div class="tree-box">
+      <div class="tree-title">${tree.title}</div>
+      ${tree.nodes.map((n, i) => `
+        <div class="tree-node ${n.cls}" onclick="showTreeDetail('${n.label.replace(/'/g,'').replace(/✓|✗/g,'')}', '${n.info}')">${n.label}</div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+// ─── DETAIL PANEL ───────────────────────────────────────────────────────────
+
+function showDetail(type, idx) {
+  const c = CLASSES[idx];
+  document.getElementById('detail-content').innerHTML = `
+    <h2>${c.name}</h2>
+    <div style="font-size:0.7rem;color:#4a5568;font-family:monospace;margin-bottom:8px">${c.file}</div>
+    <p>${c.description}</p>
+    ${c.props.length ? `<h3>Propiedades</h3>` : ''}
+    ${c.props.map(p => `<div style="font-size:0.78rem;padding:3px 0;font-family:monospace;color:#93c5fd">${p.name}<span style="color:#64748b">: ${p.type}</span> <span style="color:#475569;font-size:0.7rem;font-family:sans-serif">— ${p.desc}</span></div>`).join('')}
+    <h3>Métodos</h3>
+    ${c.methods.map(m => `<div style="font-size:0.78rem;padding:3px 0;font-family:monospace;color:#86efac">${m.sig} <span style="color:#475569;font-size:0.7rem;font-family:sans-serif">— ${m.desc}</span></div>`).join('')}
+    <h3>Código de ejemplo</h3>
+    <div class="code-block">${escHtml(c.snippet)}</div>
+  `;
+  openDetail();
+}
+
+function showFlowDetail(idx) {
+  const s = FLOW_STEPS[idx];
+  document.getElementById('detail-content').innerHTML = `
+    <h2>${s.title}</h2>
+    <div style="font-size:0.7rem;color:#4a5568;font-family:monospace;margin-bottom:8px">${s.file}</div>
+    <p>${s.detail.replace(/\n/g, '<br>')}</p>
+  `;
+  openDetail();
+}
+
+function showTreeDetail(name, info) {
+  document.getElementById('detail-content').innerHTML = `
+    <h2>${name}</h2>
+    <p>${info}</p>
+  `;
+  openDetail();
+}
+
+function openDetail() { document.getElementById('detail-panel').classList.add('open'); }
+function closeDetail() { document.getElementById('detail-panel').classList.remove('open'); }
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── TABS ───────────────────────────────────────────────────────────────────
+
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ─── INIT ───────────────────────────────────────────────────────────────────
+renderClasses();
+renderFlow();
+renderAlgos();
+renderInherit();
+</script>
+</body>
+</html>

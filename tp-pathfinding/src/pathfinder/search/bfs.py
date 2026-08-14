@@ -43,6 +43,7 @@ class BreadthFirstSearch:
             for action in grid.actions(node.state):
                 #s’ ← problema.resultado(n.estado, a)
                 new_state = grid.result(node.state, action)
+                
                 if new_state not in reached.keys():
                     new_node = Node("", state=new_state, cost = node.cost+grid.individual_cost(node.state,action), parent=node, action=action)
                     if grid.objective_test(new_state):
